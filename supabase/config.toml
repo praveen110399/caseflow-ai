@@ -1,0 +1,4 @@
+project_id = "nahcqwmeatqltxhbheed"
+
+[functions.generate-request-note]
+verify_jwt = false
