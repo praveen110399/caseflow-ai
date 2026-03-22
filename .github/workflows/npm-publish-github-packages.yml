@@ -3,8 +3,6 @@ name: Node.js CI & Deploy
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
 
 jobs:
   build:
@@ -20,7 +18,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Clean install dependencies
+      - name: Install dependencies
         run: |
           rm -rf node_modules package-lock.json
           npm install
@@ -36,7 +34,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-build
-          path: build/
+          path: build/   # change if your build output is different
 
   deploy:
     needs: build
@@ -47,16 +45,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
           name: app-build
           path: build
+
+      - name: Debug artifact contents
+        run: ls -R build
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
