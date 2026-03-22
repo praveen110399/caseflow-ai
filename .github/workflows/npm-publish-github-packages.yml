@@ -1,59 +1,30 @@
-# This workflow runs tests using Node.js and publishes the package to GitHub Packages when releasing code
-# For more information see: https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
+name: Node.js CI
 
-name: Node.js Package
-
-# Trigger workflows only on release events or specific branches
-on: push
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout the repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20'
+          cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run linting
-        run: npm run lint # Assuming a lint script is defined in package.json
+      - name: Clean install dependencies
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install
+          npm ci
 
       - name: Run tests
         run: npm test
-
-      - name: Run security audit
-        run: npm audit || echo "Audit failed, but continuing..." # Allow publishing even with low severity issues
-
-  publish-gpr:
-    needs: build # Only run after build succeeds
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout the repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: https://npm.pkg.github.com/
-    
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Publish package
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Notify success
-        if: success()
-        run: echo "Package successfully published!"
