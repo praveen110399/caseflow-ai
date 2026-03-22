@@ -6,11 +6,6 @@ name: Node.js Package
 # Trigger workflows only on release events or specific branches
 on: push
 
-  push:
-    branches:
-      - main
-      - develop # Add other relevant branches if needed
-
 jobs:
   build:
     runs-on: ubuntu-latest
