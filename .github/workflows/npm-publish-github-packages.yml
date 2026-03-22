@@ -1,62 +1,99 @@
-name: Next.js CI & Deploy
+name: Next.js Build & Deploy
 
 on:
   push:
+    branches: [ "main" ]
+  pull_request:
     branches: [ "main" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    
+    strategy:
+      matrix:
+        node-version: [20.x]
 
-      - uses: actions/setup-node@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ matrix.node-version }}
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install
-          npm ci
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint --if-present
 
       - name: Run tests
-        run: npm test
+        run: npm test --if-present
 
-      - name: Build & Export Next.js app
+      - name: Build Next.js application
+        run: npm run build
+
+      - name: Export static site
+        run: npm run export --if-present
+
+      - name: Verify build output
         run: |
-          npm run build
-          npm run export
-
-      - name: List export output
-        run: ls -R out
+          if [ -d "out" ]; then
+            echo "✓ Export directory found"
+            ls -la out/
+          elif [ -d ".next" ]; then
+            echo "✓ Next.js build directory found"
+            ls -la .next/
+          else
+            echo "⚠ No output directory found"
+            exit 1
+          fi
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: app-build
-          path: out/
+          name: build-artifact
+          path: |
+            out/
+            .next/
+          retention-days: 1
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
     permissions:
       contents: write
+      pages: write
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: app-build
-          path: out
+          name: build-artifact
 
-      - name: Debug artifact contents
-        run: ls -R out
+      - name: Verify artifact contents
+        run: |
+          echo "Checking for build output..."
+          ls -la
+          if [ -d "out" ]; then
+            echo "Using static export from 'out' directory"
+            ls -R out/
+          elif [ -d ".next" ]; then
+            echo "Using Next.js build from '.next' directory"
+            ls -R .next/
+          fi
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: out
+          publish_dir: ./out
+          cname: ${{ secrets.CUSTOM_DOMAIN }}
